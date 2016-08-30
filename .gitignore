@@ -15,3 +15,5 @@ src/
 _build
 _build_html
 beehive.*
+start.sh
+nohup.out

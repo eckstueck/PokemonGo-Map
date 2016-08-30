@@ -226,6 +226,7 @@
             </div>
           </div>
         </div>
+	<a target="_blank" href="#"><img src="static/images/paypal.png" style="width:100%;padding:20px 50px"></img></a>
       </nav>
       <nav id="stats">
         <div class="switch-container">
@@ -261,5 +262,20 @@
     <script src="{{ url_for('static', filename='dist/js/map.min.js').lstrip('/') }}"></script>
     <script src="{{ url_for('static', filename='dist/js/stats.min.js').lstrip('/') }}"></script>
     <script defer src="https://maps.googleapis.com/maps/api/js?key={{ gmaps_key }}&amp;callback=initMap&amp;libraries=places,geometry"></script>
+	<!-- Piwik -->
+	<script type="text/javascript">
+	    var _paq = _paq || [];
+	    _paq.push(['trackPageView']);
+	    _paq.push(['enableLinkTracking']);
+	    (function() {
+	    var u="//eckstueck.piwikpro.com/";
+	    _paq.push(['setTrackerUrl', u+'piwik.php']);
+	    _paq.push(['setSiteId', 1]);
+	    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+	    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
+	    })();
+	    </script>
+	<noscript><p><img src="//eckstueck.piwikpro.com/piwik.php?idsite=1" style="border:0;" alt="" /></p></noscript>
+	<!-- End Piwik Code -->
   </body>
 </html>
