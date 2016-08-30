@@ -246,7 +246,7 @@ class Pokemon(BaseModel):
             if key not in spawnpoints:
                 spawnpoints[key] = sp
             else:
-                spawnpoints[key]['special'] = True
+                spawnpoints[key]['special'] = spawnpoints[key]['time'] - disappear_time
 
             if 'time' not in spawnpoints[key] or count >= spawnpoints[key]['count']:
                 spawnpoints[key]['time'] = disappear_time

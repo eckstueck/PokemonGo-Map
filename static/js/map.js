@@ -1193,7 +1193,7 @@ function pokestopLabel (expireTime, latitude, longitude) {
   return str
 }
 
-function spawnpointLabel (spawnTime, latitude, longitude) {
+function spawnpointLabel (spawnTime, spacial, latitude, longitude) {
   var str;
   if (spawnTime) {
     str = `
@@ -1202,11 +1202,17 @@ function spawnpointLabel (spawnTime, latitude, longitude) {
       </div>
       <div>
         Pokemon spawn at ${pad(spawnTime.getHours())}:${pad(spawnTime.getMinutes())}:${pad(spawnTime.getSeconds())}
-        <span class='label-countdown' disappears-at='${spawnTime.getTime()}'>(00m00s)</span>
+        <span class='label-countdown' data='spawn' disappears-at='${spawnTime.getTime()}'>(00m00s)</span>
       </div>
       <div>
         Location: ${latitude.toFixed(6)}, ${longitude.toFixed(7)}
       </div>`
+    if (spacial) {
+      str += `
+        <div>
+          Maybe a spacial spawn! ${spacial}
+        </div>`
+      }
   } else {
     str = ``
   }
@@ -1430,17 +1436,22 @@ function getColorBySpawnTime (value) {
 
 function setupSpawnpointMarker (item) {
   var circleCenter = new google.maps.LatLng(item['latitude'], item['longitude'])
+  var sColor = "#000000"
+  if(item['special']) {
+    sColor = "#FF0000"
+  }
 
   var marker = new google.maps.Circle({
     map: map,
     center: circleCenter,
     radius: 5, // metres
-    fillColor: getColorBySpawnTime(item['time']),
-    strokeWeight: 1
+    fillColor: getColorBySpawnTime(item['spawntime']),
+    strokeWeight: 1,
+    strokeColor: sColor
   })
 
   marker.infoWindow = new google.maps.InfoWindow({
-    content: spawnpointLabel(item['time'], item['latitude'], item['longitude']),
+    content: spawnpointLabel(item['spawntime'], item['special'], item['latitude'], item['longitude']),
     disableAutoPan: true,
     position: circleCenter
   })
@@ -1451,7 +1462,6 @@ function setupSpawnpointMarker (item) {
 }
 
 function getColorBySpawnTime (value) {
-  value = (value + 2700) % 3600;
   var now = new Date()
   var seconds = now.getMinutes() * 60 + now.getSeconds()
 
@@ -1466,9 +1476,9 @@ function getColorBySpawnTime (value) {
   var hue = 275 // purple when spawn is neither about to spawn nor active
 
   if (diff >= 0 && diff <= 900) { // green to red over 15 minutes of active spawn
-    hue = (1 - (diff / 60 / 15)) * 120
-  } else if (diff < 0 && diff > -300) { // light blue to dark blue over 5 minutes til spawn
-    hue = ((1 - (-diff / 60 / 5)) * 50) + 200
+    hue = 130
+  } else if (diff < 0 && diff > -900) { // light blue to dark blue over 5 minutes til spawn
+    hue = ((1 - (-diff / 60 / 15)) * 100)
   }
 
   return ['hsl(', hue, ',100%,50%)'].join('')
@@ -1768,7 +1778,7 @@ function processSpawnpoints (i, item) {
     var sptime = new Date();
     sptime.setSeconds(0);
     sptime.setMinutes(0);
-    sptime.setSeconds((parseInt(item.time) + 2700) % 3600);
+    sptime.setSeconds(parseInt(item.time));
     var currentTime = new Date();
     if (currentTime >= sptime) {
       if (sptime.getHours() == 23) {
@@ -1778,7 +1788,7 @@ function processSpawnpoints (i, item) {
         sptime.setHours(sptime.getHours() + 1);
       }
     }
-    item['spawn'] = sptime;
+    item['spawntime'] = sptime;
     item.marker = setupSpawnpointMarker(item)
     mapData.spawnpoints[id] = item
   }
@@ -1839,6 +1849,7 @@ function redrawPokemon (pokemonList) {
 var updateLabelDiffTime = function () {
   $('.label-countdown').each(function (index, element) {
     var disappearsAt = new Date(parseInt(element.getAttribute('disappears-at')))
+    var type = new Date(parseInt(element.getAttribute('data-typ')))
     var now = new Date()
 
     var difference = Math.abs(disappearsAt - now)
@@ -1849,6 +1860,9 @@ var updateLabelDiffTime = function () {
 
     if (disappearsAt < now) {
       timestring = '(expired)'
+      if (type = "spawn") {
+        timestring = '(spawnt)'
+      }
     } else {
       timestring = '('
       if (hours > 0) {

@@ -17,3 +17,4 @@ _build_html
 beehive.*
 start.sh
 nohup.out
+startGym.sh
