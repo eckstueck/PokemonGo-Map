@@ -1082,7 +1082,7 @@ function gymLabel (teamName, teamId, gymPoints, latitude, longitude, lastScanned
   var lastScannedStr
   if (lastScanned) {
     var lastScannedDate = new Date(lastScanned)
-    lastScannedStr = `${lastScannedDate.getFullYear()}-${pad(lastScannedDate.getMonth() + 1)}-${lastScannedDate.getDate()} ${pad(lastScannedDate.getHours())}:${pad(lastScannedDate.getMinutes())}:${pad(lastScannedDate.getSeconds())}`
+    lastScannedStr = `${lastScannedDate.getFullYear()}-${pad(lastScannedDate.getMonth() + 1)}-${pad(lastScannedDate.getDate())} ${pad(lastScannedDate.getHours())}:${pad(lastScannedDate.getMinutes())}:${pad(lastScannedDate.getSeconds())}`
   } else {
     lastScannedStr = 'Unknown'
   }
@@ -1187,7 +1187,7 @@ function pokestopLabel (expireTime, latitude, longitude) {
   return str
 }
 
-function spawnpointLabel (spawnTime, spacial, latitude, longitude) {
+function spawnpointLabel (spawnTime, special, latitude, longitude) {
   var str;
   if (spawnTime) {
     str = `
@@ -1201,10 +1201,10 @@ function spawnpointLabel (spawnTime, spacial, latitude, longitude) {
       <div>
         Location: ${latitude.toFixed(6)}, ${longitude.toFixed(7)}
       </div>`
-    if (spacial) {
+    if (special) {
       str += `
         <div>
-          Maybe a spacial spawn! ${spacial}
+          Maybe a special spawn! ${special}
         </div>`
       }
   } else {
@@ -1430,31 +1430,67 @@ function getColorBySpawnTime (value) {
   }
 
   var diff = (seconds - value)
-  var hue = 275 // purple when spawn is neither about to spawn nor active
-
+  var hue = 275 // light purple when spawn is neither about to spawn nor active
   if (diff >= 0 && diff <= 900) { // green to red over 15 minutes of active spawn
     hue = (1 - (diff / 60 / 15)) * 120
   } else if (diff < 0 && diff > -300) { // light blue to dark blue over 5 minutes til spawn
     hue = ((1 - (-diff / 60 / 5)) * 50) + 200
   }
 
-  return ['hsl(', hue, ',100%,50%)'].join('')
+  hue = Math.round(hue / 5) * 5
+
+  return hue
+}
+
+function changeSpawnIcon (color, zoom) {
+  var urlColor = ''
+  if (color === 275) {
+    urlColor = './static/icons/hsl-275-light.png'
+  } else {
+    urlColor = './static/icons/hsl-' + color + '.png'
+  }
+  var zoomScale = 1.6 // adjust this value to change the size of the spawnpoint icons
+  var minimumSize = 1
+  var newSize = Math.round(zoomScale * (zoom - 10)) // this scales the icon based on zoom
+  if (newSize < minimumSize) {
+    newSize = minimumSize
+  }
+
+  var newIcon = {
+    url: urlColor,
+    scaledSize: new google.maps.Size(newSize, newSize),
+    anchor: new google.maps.Point(newSize / 2, newSize / 2)
+  }
+
+  return newIcon
+}
+
+function spawnPointIndex (color) {
+  var newIndex = 1
+  var scale = 0
+  if (color==140) { // high to low over 15 minutes of active spawn
+    scale = 140
+    newIndex = 100 + scale * 100
+  } else if (color >= 0 && color <= 100) { // low to high over 5 minutes til spawn
+    newIndex = color + 1;
+  }
+
+  return newIndex
 }
 
 function setupSpawnpointMarker (item) {
   var circleCenter = new google.maps.LatLng(item['latitude'], item['longitude'])
-  var sColor = "#000000"
-  if(item['special']) {
-    sColor = "#FF0000"
-  }
 
-  var marker = new google.maps.Circle({
+  var hue = getColorBySpawnTime(item['spawntime'])
+  var zoom = map.getZoom()
+  if(item['special']) {
+    zoom = zoom * 1.3;
+  }
+  var marker = new google.maps.Marker({
     map: map,
-    center: circleCenter,
-    radius: 5, // metres
-    fillColor: getColorBySpawnTime(item['spawntime']),
-    strokeWeight: 1,
-    strokeColor: sColor
+    position: circleCenter,
+    icon: changeSpawnIcon(hue, zoom),
+    zIndex: spawnPointIndex(hue)
   })
 
   marker.infoWindow = new google.maps.InfoWindow({
@@ -1469,6 +1505,19 @@ function setupSpawnpointMarker (item) {
 }
 
 function getColorBySpawnTime (value) {
+  var diff = getSpawnTimeDiff(value)
+  var hue = 275 // purple when spawn is neither about to spawn nor active
+
+  if (diff >= 0 && diff <= 900) { // green to red over 15 minutes of active spawn
+    hue = 130
+  } else if (diff < 0 && diff > -900) { // light blue to dark blue over 5 minutes til spawn
+    hue = ((1 - (-diff / 60 / 15)) * 100)
+  }
+  hue = Math.round(hue / 5) * 5
+  return hue
+}
+
+function getSpawnTimeDiff(value) {
   var now = new Date()
   var seconds = now.getMinutes() * 60 + now.getSeconds()
 
@@ -1479,16 +1528,7 @@ function getColorBySpawnTime (value) {
     value += 3600
   }
 
-  var diff = (seconds - value)
-  var hue = 275 // purple when spawn is neither about to spawn nor active
-
-  if (diff >= 0 && diff <= 900) { // green to red over 15 minutes of active spawn
-    hue = 130
-  } else if (diff < 0 && diff > -900) { // light blue to dark blue over 5 minutes til spawn
-    hue = ((1 - (-diff / 60 / 15)) * 100)
-  }
-
-  return ['hsl(', hue, ',100%,50%)'].join('')
+  return seconds - value
 }
 
 function clearSelection () {
@@ -1773,11 +1813,21 @@ function processSpawnpoints (i, item) {
   }
 
   var id = item['spawnpoint_id']
-
+  var zoom = map.getZoom()
+  if(item['special']) {
+    zoom = zoom * 1.3;
+  }
   if (id in mapData.spawnpoints) {
-    mapData.spawnpoints[id].marker.setOptions({
-      fillColor: getColorBySpawnTime(item['time'])
-    })
+    var hue = getColorBySpawnTime(item['time'])
+    mapData.spawnpoints[id].marker.setIcon(changeSpawnIcon(hue, zoom))
+    mapData.spawnpoints[id].marker.setZIndex(spawnPointIndex(hue))
+    var diff = getSpawnTimeDiff(item['time'])
+    if (item['special'] && diff >= 0 && diff <= 900) {
+      mapData.spawnpoints[id].marker.setAnimation(google.maps.Animation.BOUNCE)
+    }
+    else{
+      mapData.spawnpoints[id].marker.setAnimation(null)
+    }
   } else { // add marker to map and item to dict
     if (item.marker) {
       item.marker.setMap(null)
